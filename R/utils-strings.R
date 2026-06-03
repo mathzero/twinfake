@@ -63,10 +63,10 @@ fake_string_for_value <- function(value, i, prefix = "value") {
     out <- safe_url(i)
   } else if (is_postcode_like(core)) {
     out <- safe_postcode(i)
+  } else if (grepl("^0+[0-9]+$", core)) {
+    out <- fake_leading_zero_id(core, i)
   } else if (is_numeric_string_like(core)) {
     out <- fake_numeric_string(core, i)
-  } else if (grepl("^0+[0-9]+$", core)) {
-    out <- sprintf(paste0("%0", nchar(core), "d"), as.integer(i) %% (10^min(nchar(core), 8L)))
   } else if (grepl("^[[:alnum:]_.-]+$", core) && nchar(core) >= 4L) {
     out <- paste0(prefix, sprintf("%03d", as.integer(i)))
   } else {
@@ -74,6 +74,17 @@ fake_string_for_value <- function(value, i, prefix = "value") {
   }
 
   paste0(leading, apply_case_pattern(out, case_pattern(core)), trailing)
+}
+
+fake_leading_zero_id <- function(value, i) {
+  width <- nchar(value)
+  modulus <- 10^min(width, 8L)
+  fake_num <- (as.integer(i) + 137L) %% modulus
+  original_num <- suppressWarnings(as.integer(value))
+  if (!is.na(original_num) && fake_num == original_num) {
+    fake_num <- (fake_num + 1L) %% modulus
+  }
+  sprintf(paste0("%0", width, "d"), fake_num)
 }
 
 fake_numeric_string <- function(x, i) {

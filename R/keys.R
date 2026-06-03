@@ -102,8 +102,10 @@ make_fake_key_values <- function(values) {
     } else if (is_postcode_like(value)) {
       out[[i]] <- safe_postcode(i)
     } else if (grepl("^0+[0-9]+$", value)) {
-      out[[i]] <- sprintf(paste0("%0", nchar(value), "d"), i)
+      out[[i]] <- fake_leading_zero_id(value, i)
     } else if (grepl("^[0-9]+$", value)) {
+      out[[i]] <- as.character(100000L + i)
+    } else if (!is.na(suppressWarnings(as.numeric(value)))) {
       out[[i]] <- as.character(100000L + i)
     } else {
       out[[i]] <- paste0("key_", sprintf("%05d", i))

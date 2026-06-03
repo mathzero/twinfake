@@ -1,0 +1,28 @@
+---
+title: "Sensitivity specs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Sensitivity specs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, eval=FALSE}
+spec <- list(
+  defaults = list(sensitivity = "sensitive"),
+  files = list(
+    "patients.csv" = list(
+      columns = list(
+        patient_id = list(role = "key", sensitivity = "sensitive"),
+        sex = list(sensitivity = "public_code")
+      )
+    )
+  )
+)
+
+write_twin_spec(spec, "twinfake_spec.json")
+read_twin_spec("twinfake_spec.json")
+```
+
+`public_code` and `copy` are explicit opt-ins. Do not use them for columns that
+may contain confidential labels or values.

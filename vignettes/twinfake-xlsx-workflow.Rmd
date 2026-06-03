@@ -1,0 +1,21 @@
+---
+title: "Excel workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Excel workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, eval=FALSE}
+make_fake_folder(
+  "data/private",
+  "data/fake",
+  xlsx_sheets = "all",
+  overwrite = TRUE
+)
+```
+
+Excel handling preserves sheet names and tabular cell values after faking.
+Workbook styling, formulas, comments, hidden sheets, merged cells, and metadata
+are not guaranteed to be preserved.

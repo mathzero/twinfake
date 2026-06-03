@@ -97,6 +97,7 @@ column_control <- function(spec, column, file_id = NULL, sheet = NULL) {
   }
 
   candidates <- unique(c(
+    "default",
     file_id,
     if (!is.null(file_id) && !is.null(sheet)) paste0(file_id, ":", sheet),
     if (!is.null(file_id)) basename(file_id),

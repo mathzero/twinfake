@@ -1,0 +1,20 @@
+---
+title: "LLM-assisted code development"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{LLM-assisted code development}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+Use `twinfake` to create a fake data root before asking an LLM or coding agent
+to help with import, cleaning, wrangling, modelling, reporting, or validation
+code.
+
+```{r, eval=FALSE}
+make_fake_folder("data/private", "data/fake", overwrite = TRUE)
+
+# Point development code at data/fake instead of data/private.
+```
+
+Generated data should still be reviewed before being sent to external systems.

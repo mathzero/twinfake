@@ -1,0 +1,23 @@
+---
+title: "Folder workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Folder workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, eval=FALSE}
+library(twinfake)
+
+make_fake_folder(
+  input_dir = "data/private",
+  output_dir = "data/fake",
+  seed = 20260603,
+  overwrite = TRUE
+)
+```
+
+The output folder mirrors relative paths and supported file names. The manifest
+records schemas, row counts, warnings, engine, risk level, and seed without raw
+values or real-to-fake key maps.

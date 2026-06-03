@@ -94,20 +94,34 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
     status <- shiny::reactiveVal("Ready.")
 
     shiny::observeEvent(input$write_spec, {
-      spec <- skeleton_spec_from_profile(profile(), default_sensitivity = input$default_sensitivity)
-      write_twin_spec(spec, input$spec_path)
-      status(paste("Wrote spec:", input$spec_path))
+      tryCatch(
+        {
+          spec <- skeleton_spec_from_profile(profile(), default_sensitivity = input$default_sensitivity)
+          write_twin_spec(spec, input$spec_path)
+          status(paste("Wrote spec:", input$spec_path))
+        },
+        error = function(e) {
+          status(paste("Spec write failed:", conditionMessage(e)))
+        }
+      )
     })
 
     shiny::observeEvent(input$run_fake, {
-      make_fake_folder(
-        input_dir = input$input_dir,
-        output_dir = input$output_dir,
-        spec = if (file.exists(input$spec_path)) read_twin_spec(input$spec_path) else NULL,
-        overwrite = TRUE,
-        quiet = TRUE
+      tryCatch(
+        {
+          make_fake_folder(
+            input_dir = input$input_dir,
+            output_dir = input$output_dir,
+            spec = if (file.exists(input$spec_path)) read_twin_spec(input$spec_path) else NULL,
+            overwrite = TRUE,
+            quiet = TRUE
+          )
+          status(paste("Generated fake folder:", input$output_dir))
+        },
+        error = function(e) {
+          status(paste("Generation failed:", conditionMessage(e)))
+        }
       )
-      status(paste("Generated fake folder:", input$output_dir))
     })
 
     output$status <- shiny::renderText(status())

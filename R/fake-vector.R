@@ -138,6 +138,11 @@ fake_character_vec <- function(x, n, name = "value") {
   if (!length(uniques)) {
     return(out)
   }
+  if (is_categorical_character(x)) {
+    fake_values <- safe_label(paste0(name, "_level"), seq_along(uniques))
+    out[non_missing] <- fake_values[match(source[non_missing], uniques)]
+    return(out)
+  }
   order <- random_permutation(length(uniques))
   fake_values <- character(length(uniques))
   for (i in seq_along(uniques)) {
@@ -145,6 +150,33 @@ fake_character_vec <- function(x, n, name = "value") {
   }
   out[non_missing] <- fake_values[match(source[non_missing], uniques)]
   out
+}
+
+is_categorical_character <- function(x) {
+  if (!is.character(x) || !length(x)) {
+    return(FALSE)
+  }
+  y <- x[!is.na(x)]
+  if (!length(y)) {
+    return(TRUE)
+  }
+  values <- unique(y)
+  non_dirty <- values[!is_dirty_missing_token(values)]
+  if (!length(non_dirty)) {
+    return(TRUE)
+  }
+  n_unique <- length(values)
+  unique_rate <- n_unique / length(y)
+  all_short <- stats::median(nchar(non_dirty), na.rm = TRUE) <= 40
+  no_long_text <- max(nchar(non_dirty), na.rm = TRUE) <= 80
+  no_structured_sensitive <- !any(
+    is_email_like(trimws(non_dirty)) |
+      is_url_like(trimws(non_dirty)) |
+      is_postcode_like(trimws(non_dirty))
+  )
+  low_cardinality <- n_unique <= max(20L, floor(sqrt(length(y))))
+  low_uniqueness <- unique_rate <= 0.25
+  low_cardinality && low_uniqueness && all_short && no_long_text && no_structured_sensitive
 }
 
 fake_logical_vec <- function(x, n) {

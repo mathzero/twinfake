@@ -68,12 +68,16 @@ fake_string_for_value <- function(value, i, prefix = "value") {
   } else if (is_numeric_string_like(core)) {
     out <- fake_numeric_string(core, i)
   } else if (grepl("^[[:alnum:]_.-]+$", core) && nchar(core) >= 4L) {
-    out <- paste0(prefix, sprintf("%03d", as.integer(i)))
+    out <- paste0(prefix, "_value_", sprintf("%03d", as.integer(i)))
   } else {
     out <- safe_label(prefix, i)
   }
 
-  paste0(leading, apply_case_pattern(out, case_pattern(core)), trailing)
+  cased <- apply_case_pattern(out, case_pattern(core))
+  if (identical(cased, core)) {
+    cased <- apply_case_pattern(paste0(prefix, "_fake_", sprintf("%03d", as.integer(i))), case_pattern(core))
+  }
+  paste0(leading, cased, trailing)
 }
 
 fake_leading_zero_id <- function(value, i) {

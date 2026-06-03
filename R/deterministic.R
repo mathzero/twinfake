@@ -57,7 +57,7 @@ detect_pair_dependency <- function(parent_x, child_x, parent, child) {
     if (all(endsWith(p[both], c[both]))) {
       return(list(type = "suffix", parent = parent, child = child))
     }
-    if (is_perfect_mapping(p, c)) {
+    if (is_perfect_mapping(p, c) && is_low_cardinality_mapping(p, c)) {
       return(list(type = "categorical_map", parent = parent, child = child))
     }
   }
@@ -93,6 +93,18 @@ is_perfect_mapping <- function(parent, child) {
   child <- child[both]
   split_child <- split(child, parent)
   all(vapply(split_child, function(x) length(unique(x)) == 1L, logical(1L)))
+}
+
+is_low_cardinality_mapping <- function(parent, child) {
+  both <- !is.na(parent) & !is.na(child)
+  n <- sum(both)
+  if (n < 3L) {
+    return(FALSE)
+  }
+  parent_unique <- length(unique(parent[both]))
+  child_unique <- length(unique(child[both]))
+  limit <- max(20L, ceiling(sqrt(n) * 2L))
+  parent_unique <= limit && child_unique <= limit
 }
 
 detect_date_part <- function(parent_x, child_x) {

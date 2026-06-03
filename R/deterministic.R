@@ -25,7 +25,7 @@ detect_pair_dependency <- function(parent_x, child_x, parent, child) {
   if (vectors_same(parent_x, child_x)) {
     return(list(type = "duplicate", parent = parent, child = child))
   }
-  if (is.characterish(parent_x) && is.characterish(child_x)) {
+  if (is_characterish(parent_x) && is_characterish(child_x)) {
     p <- as.character(parent_x)
     c <- as.character(child_x)
     both <- !is.na(p) & !is.na(c)

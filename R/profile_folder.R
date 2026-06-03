@@ -24,6 +24,29 @@ profile_folder <- function(
     public_codes = NULL,
     key_cols = NULL,
     risk_level = c("strict", "balanced", "utility")) {
+  profile_folder_impl(
+    input_dir = input_dir,
+    recursive = recursive,
+    include = include,
+    exclude = exclude,
+    sensitivity = sensitivity,
+    public_codes = public_codes,
+    key_cols = key_cols,
+    risk_level = risk_level,
+    progress = NULL
+  )
+}
+
+profile_folder_impl <- function(
+    input_dir,
+    recursive = TRUE,
+    include = NULL,
+    exclude = NULL,
+    sensitivity = "all",
+    public_codes = NULL,
+    key_cols = NULL,
+    risk_level = c("strict", "balanced", "utility"),
+    progress = NULL) {
   input_dir <- check_dir_readable(input_dir, "input_dir")
   check_bool(recursive, "recursive")
   risk_level <- arg_match_twin(risk_level[[1L]], c("strict", "balanced", "utility"), "risk_level")
@@ -33,8 +56,12 @@ profile_folder <- function(
   profiles <- list()
   skipped <- list()
   spec <- normalize_twin_spec(sensitivity = sensitivity, public_codes = public_codes, key_cols = key_cols, risk_level = risk_level)
-  for (path in paths) {
+  for (i in seq_along(paths)) {
+    path <- paths[[i]]
     rel <- safe_rel_path(path, input_dir)
+    if (is.function(progress)) {
+      progress(i, length(paths), rel)
+    }
     if (!is_supported_file(path)) {
       skipped[[rel]] <- list(path = rel, status = "unsupported")
       next

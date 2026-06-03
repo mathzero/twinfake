@@ -88,9 +88,13 @@ fake <- make_fake_data(real_data, spec = spec)
 
 ## Excel files
 
-`.xlsx` support is optional and uses `readxl` and `writexl` when installed.
-All sheets are read by default, sheet names are preserved, and a single fake
-workbook is written.
+`.xlsx` and `.xls` input support is optional and uses `readxl` and `writexl`
+when installed. All sheets are read by default, sheet names are preserved, and a
+single fake workbook is written.
+
+Legacy `.xls` inputs are read, but fake workbooks are written as `.xlsx` files
+with the same base name because `writexl` does not write old BIFF `.xls`
+workbooks. The manifest records this conversion.
 
 Formulas, styles, comments, hidden sheets, cell formatting, merged cells, and
 workbook-level metadata are not guaranteed to be preserved in this first

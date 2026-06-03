@@ -1,5 +1,5 @@
 read_xlsx_file <- function(path, sheets = "all") {
-  require_suggested("readxl", "to read .xlsx files")
+  require_suggested("readxl", "to read Excel files")
   sheet_names <- readxl::excel_sheets(path)
   if (!identical(sheets, "all")) {
     sheet_names <- intersect(sheet_names, sheets)

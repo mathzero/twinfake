@@ -16,6 +16,10 @@ make_fake_folder(
 )
 ```
 
-Excel handling preserves sheet names and tabular cell values after faking.
+Excel handling supports `.xlsx` and `.xls` inputs, preserves sheet names, and
+fakes tabular cell values. Legacy `.xls` files are written as `.xlsx` outputs
+with the same base name because the current optional writer does not produce old
+BIFF `.xls` workbooks.
+
 Workbook styling, formulas, comments, hidden sheets, merged cells, and metadata
 are not guaranteed to be preserved.

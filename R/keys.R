@@ -74,7 +74,7 @@ entry_tables <- function(entry) {
   if (entry$type == "table") {
     return(list(list(file_id = entry$rel_path, sheet = NULL, data = entry$data)))
   }
-  if (entry$type == "xlsx") {
+  if (entry$type == "excel") {
     out <- list()
     for (sheet in names(entry$data)) {
       out[[sheet]] <- list(file_id = entry$rel_path, sheet = sheet, data = entry$data[[sheet]])

@@ -2,7 +2,7 @@ supported_extensions <- function() {
   c(
     "csv", "tsv", "txt",
     "rds", "rdata", "rda",
-    "xlsx",
+    "xls", "xlsx",
     "parquet", "feather",
     "sav", "dta", "sas7bdat",
     "qs"
@@ -27,6 +27,7 @@ read_twin_file <- function(path, rel_path = basename(path), xlsx_sheets = "all")
     txt = read_delimited_file(path, sep = "\t"),
     rds = read_rds_file(path),
     rdata = read_rdata_file(path),
+    xls = read_xlsx_file(path, sheets = xlsx_sheets),
     xlsx = read_xlsx_file(path, sheets = xlsx_sheets),
     parquet = read_arrow_file(path, format = "parquet"),
     feather = read_arrow_file(path, format = "feather"),
@@ -37,8 +38,8 @@ read_twin_file <- function(path, rel_path = basename(path), xlsx_sheets = "all")
     cli_abort_twin("Unsupported file type for {.path {path}}.")
   )
 
-  type <- if (format == "xlsx") {
-    "xlsx"
+  type <- if (format %in% c("xls", "xlsx")) {
+    "excel"
   } else if (format == "rdata") {
     "rdata"
   } else if (is.data.frame(data)) {
@@ -53,7 +54,11 @@ read_twin_file <- function(path, rel_path = basename(path), xlsx_sheets = "all")
     format = format,
     type = type,
     data = data,
-    warnings = character()
+    warnings = if (format == "xls") {
+      "Legacy .xls input is read with readxl and written as .xlsx because writexl does not write .xls workbooks."
+    } else {
+      character()
+    }
   )
 }
 
@@ -70,6 +75,12 @@ write_twin_file <- function(entry, data, output_path, overwrite = FALSE) {
     txt = write_delimited_file(data, output_path, sep = "\t"),
     rds = write_rds_file(data, output_path),
     rdata = write_rdata_file(data, output_path),
+    xls = {
+      if (file_format(output_path) != "xlsx") {
+        cli_abort_twin("Legacy .xls inputs must be written to a {.file .xlsx} output path.")
+      }
+      write_xlsx_file(data, output_path)
+    },
     xlsx = write_xlsx_file(data, output_path),
     parquet = write_arrow_file(data, output_path, format = "parquet"),
     feather = write_arrow_file(data, output_path, format = "feather"),
@@ -95,7 +106,7 @@ fake_entry_data <- function(entry, spec, key_maps, preserve_row_count, engine, r
       quiet = quiet
     ))
   }
-  if (entry$type == "xlsx") {
+  if (entry$type == "excel") {
     out <- list()
     for (sheet in names(entry$data)) {
       out[[sheet]] <- fake_data_frame(
@@ -155,6 +166,7 @@ safe_manifest_for_entry <- function(entry, output_path, output_dir = dirname(out
     input_path = entry$rel_path,
     output_path = if (is.na(output_path)) NA_character_ else safe_rel_path(output_path, output_dir),
     format = entry$format,
+    output_format = if (is.na(output_path)) NA_character_ else file_format(output_path),
     type = entry$type,
     status = status,
     warnings = unique(c(entry$warnings %||% character(), warnings))
@@ -164,7 +176,7 @@ safe_manifest_for_entry <- function(entry, output_path, output_dir = dirname(out
     base$row_count <- nrow(fake_data)
     base$column_names <- names(fake_data)
     base$classes <- lapply(fake_data, class)
-  } else if (entry$type == "xlsx" && is.list(fake_data)) {
+  } else if (entry$type == "excel" && is.list(fake_data)) {
     base$sheets <- lapply(fake_data, function(sheet_data) {
       list(
         row_count = if (is.data.frame(sheet_data)) nrow(sheet_data) else NA_integer_,

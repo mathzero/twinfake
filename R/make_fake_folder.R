@@ -225,10 +225,26 @@ handle_unknown_file <- function(path, rel, output_dir, unknown, overwrite) {
 
 output_path_for_entry <- function(entry, output_dir, preserve_file_names = TRUE) {
   if (isTRUE(preserve_file_names)) {
+    if (entry$format == "xls") {
+      return(file.path(output_dir, replace_extension(entry$rel_path, "xlsx")))
+    }
     return(file.path(output_dir, entry$rel_path))
   }
-  ext <- if (nzchar(entry$format)) paste0(".", entry$format) else ""
+  ext <- if (entry$format == "xls") {
+    ".xlsx"
+  } else if (nzchar(entry$format)) {
+    paste0(".", entry$format)
+  } else {
+    ""
+  }
   file.path(output_dir, paste0(safe_label("file", seq_along(entry$rel_path)), ext))
+}
+
+replace_extension <- function(path, ext) {
+  if (nzchar(tools::file_ext(path))) {
+    return(sub("\\.[^.]*$", paste0(".", ext), path))
+  }
+  paste0(path, ".", ext)
 }
 
 print.twinfake_folder_result <- function(x, ...) {

@@ -83,7 +83,7 @@ profile_entry <- function(entry, spec, risk_level) {
   if (entry$type == "table") {
     return(profile_object(entry$data, spec = spec, risk_level = risk_level, file_id = entry$rel_path))
   }
-  if (entry$type == "xlsx") {
+  if (entry$type == "excel") {
     out <- list()
     for (sheet in names(entry$data)) {
       out[[sheet]] <- profile_object(entry$data[[sheet]], spec = spec, risk_level = risk_level, file_id = entry$rel_path, sheet = sheet)

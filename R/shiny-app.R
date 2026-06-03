@@ -283,7 +283,7 @@ profile_file_type <- function(x) {
     return(x$type %||% "table")
   }
   if (is.list(x) && length(x) && all(vapply(x, inherits, logical(1L), "twinfake_profile"))) {
-    return("workbook")
+    return("excel")
   }
   "object"
 }

@@ -1,0 +1,47 @@
+Package: twinfake
+Title: Privacy-First Pipeline Twin Data for Code Development
+Version: 0.0.1
+Authors@R: c(
+    person("twinfake contributors", role = c("aut", "cre"), email = "twinfake@example.invalid")
+  )
+Description: Generates local, privacy-preserving dummy data sets that mirror
+    schemas, file layouts, dirty data patterns, deterministic relationships, and
+    join behaviour of sensitive analysis inputs. The generated data are intended
+    for private code development and LLM-assisted pipeline construction, not for
+    public release or as a substitute for formal disclosure-risk review.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends:
+    R (>= 4.1)
+Imports:
+    cli,
+    fs,
+    jsonlite,
+    methods,
+    rlang,
+    stats,
+    tibble,
+    tools,
+    utils,
+    vctrs
+Suggests:
+    arrow,
+    data.table,
+    DT,
+    haven,
+    knitr,
+    qs,
+    ranger,
+    readr,
+    readxl,
+    rmarkdown,
+    shiny,
+    synthpop,
+    testthat (>= 3.0.0),
+    waldo,
+    withr,
+    writexl
+Config/testthat/edition: 3
+VignetteBuilder: knitr

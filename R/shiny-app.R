@@ -19,7 +19,7 @@ launch_twin_app <- function(
     port = NULL) {
   require_suggested("shiny", "to launch the local twinfake app")
   require_suggested("DT", "to launch the local twinfake app")
-  check_dir_readable(input_dir, "input_dir")
+  input_dir <- check_dir_readable(input_dir, "input_dir")
   if (!host %in% c("127.0.0.1", "localhost")) {
     cli_abort_twin("The twinfake app is local-only; {.arg host} must be {.val 127.0.0.1} or {.val localhost}.")
   }

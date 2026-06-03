@@ -46,7 +46,7 @@ make_fake_folder <- function(
     risk_level = c("strict", "balanced", "utility"),
     report = TRUE,
     quiet = FALSE) {
-  check_dir_readable(input_dir, "input_dir")
+  input_dir <- check_dir_readable(input_dir, "input_dir")
   check_bool(overwrite, "overwrite")
   check_bool(recursive, "recursive")
   check_bool(preserve_file_names, "preserve_file_names")

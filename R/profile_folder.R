@@ -24,7 +24,7 @@ profile_folder <- function(
     public_codes = NULL,
     key_cols = NULL,
     risk_level = c("strict", "balanced", "utility")) {
-  check_dir_readable(input_dir, "input_dir")
+  input_dir <- check_dir_readable(input_dir, "input_dir")
   check_bool(recursive, "recursive")
   risk_level <- arg_match_twin(risk_level[[1L]], c("strict", "balanced", "utility"), "risk_level")
   input_dir <- normalizePath(input_dir, winslash = "/", mustWork = TRUE)

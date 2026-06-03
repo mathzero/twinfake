@@ -1,14 +1,14 @@
 cli_abort_twin <- function(message, ..., class = NULL) {
-  cli::cli_abort(message, ..., class = c(class, "twinfake_error"))
+  cli::cli_abort(message, ..., class = c(class, "twinfake_error"), .envir = parent.frame())
 }
 
 cli_warn_twin <- function(message, ..., class = NULL) {
-  cli::cli_warn(message, ..., class = c(class, "twinfake_warning"))
+  cli::cli_warn(message, ..., class = c(class, "twinfake_warning"), .envir = parent.frame())
 }
 
 cli_inform_twin <- function(message, ..., quiet = FALSE) {
   if (!isTRUE(quiet)) {
-    cli::cli_inform(message, ...)
+    cli::cli_inform(message, ..., .envir = parent.frame())
   }
 }
 

@@ -23,10 +23,17 @@ check_dir_readable <- function(path, name = "input_dir") {
   if (!is.character(path) || length(path) != 1L || is.na(path)) {
     cli_abort_twin("{.arg {name}} must be a single path string.")
   }
+  trimmed <- trimws(path)
+  if (!dir.exists(path) && trimmed != path && dir.exists(trimmed)) {
+    cli_warn_twin(
+      "{.arg {name}} included leading or trailing whitespace; using {.path {trimmed}}."
+    )
+    path <- trimmed
+  }
   if (!dir.exists(path)) {
     cli_abort_twin("{.arg {name}} does not exist: {.path {path}}.")
   }
-  invisible(path)
+  path
 }
 
 safe_rel_path <- function(path, root) {

@@ -5,8 +5,14 @@ detect_dependencies <- function(data) {
   deps <- list()
   cols <- names(data)
   for (j in seq_along(cols)) {
+    if (!is_dependency_safe_name(cols[[j]], cols)) {
+      next
+    }
     child <- cols[[j]]
     for (i in seq_len(j - 1L)) {
+      if (!is_dependency_safe_name(cols[[i]], cols)) {
+        next
+      }
       parent <- cols[[i]]
       dep <- detect_pair_dependency(data[[parent]], data[[child]], parent, child)
       if (!is.null(dep)) {
@@ -16,6 +22,12 @@ detect_dependencies <- function(data) {
     }
   }
   deps
+}
+
+is_dependency_safe_name <- function(name, all_names) {
+  !is.na(name) &&
+    nzchar(name) &&
+    sum(all_names == name, na.rm = TRUE) == 1L
 }
 
 detect_pair_dependency <- function(parent_x, child_x, parent, child) {

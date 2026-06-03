@@ -102,3 +102,10 @@ as_safe_character <- function(x) {
   }
   as.character(x)
 }
+
+safe_profile_column_name <- function(name, position) {
+  if (is.null(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
+    return(paste0("...", position))
+  }
+  name
+}

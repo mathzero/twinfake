@@ -23,15 +23,18 @@ profile_object.data.frame <- function(x, sensitivity = "all", public_codes = NUL
     risk_level = risk_level
   )
   col_profiles <- list()
-  for (col in names(x)) {
+  col_names <- names(x)
+  for (i in seq_along(x)) {
+    col <- col_names[[i]]
     control <- column_control(spec, col, file_id = file_id, sheet = sheet)
-    col_profiles[[col]] <- profile_vec(
-      x[[col]],
+    col_profiles[[i]] <- profile_vec(
+      x[[i]],
       sensitivity = control$sensitivity,
       public_code = control$sensitivity == "public_code",
       risk_level = risk_level
     )
   }
+  names(col_profiles) <- col_names
   out <- list(
     type = "data.frame",
     class = class(x),

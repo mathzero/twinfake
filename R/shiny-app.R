@@ -143,15 +143,17 @@ profile_columns_table <- function(profile) {
 }
 
 profile_columns_rows <- function(file, sheet, prof) {
-  lapply(names(prof$columns), function(col) {
-    cp <- prof$columns[[col]]
+  column_names <- prof$column_names %||% names(prof$columns)
+  lapply(seq_along(prof$columns), function(i) {
+    col <- column_names[[i]]
+    cp <- prof$columns[[i]]
     data.frame(
       file = file,
       sheet = sheet,
-      column = col,
+      column = safe_profile_column_name(col, i),
       class = paste(cp$class, collapse = "/"),
-      missing_prop = round(cp$missing_prop, 3),
-      unique_rate = round(cp$unique_rate, 3),
+      missing_prop = round(as.numeric(cp$missing_prop %||% NA_real_), 3),
+      unique_rate = round(as.numeric(cp$unique_rate %||% NA_real_), 3),
       key_suggestion = col %in% prof$key_suggestions,
       stringsAsFactors = FALSE
     )
@@ -185,8 +187,10 @@ skeleton_spec_from_profile <- function(profile, default_sensitivity = "sensitive
 
 skeleton_columns <- function(prof, default_sensitivity) {
   out <- list()
-  for (col in names(prof$columns)) {
-    out[[col]] <- list(
+  column_names <- prof$column_names %||% names(prof$columns)
+  for (i in seq_along(prof$columns)) {
+    col <- column_names[[i]]
+    out[[safe_profile_column_name(col, i)]] <- list(
       sensitivity = default_sensitivity,
       role = if (col %in% prof$key_suggestions) "key" else NULL
     )

@@ -69,21 +69,27 @@ fake_data_frame <- function(
   n <- if (preserve_row_count) nrow(x) else varied_row_count(nrow(x))
   spec <- normalize_twin_spec(spec, engine = engine, risk_level = risk_level)
   deps <- detect_dependencies(x)
-  controls <- lapply(names(x), function(col) column_control(spec, col, file_id = file_id, sheet = sheet))
-  names(controls) <- names(x)
+  col_names <- names(x)
+  controls <- vector("list", length(x))
+  for (i in seq_along(x)) {
+    controls[[i]] <- column_control(spec, col_names[[i]], file_id = file_id, sheet = sheet)
+  }
+  names(controls) <- col_names
 
-  fake_cols <- list()
-  for (col in names(x)) {
-    fake_cols[[col]] <- fake_vec(
-      x[[col]],
-      control = controls[[col]],
-      name = col,
+  fake_cols <- vector("list", length(x))
+  for (i in seq_along(x)) {
+    col <- col_names[[i]]
+    fake_cols[[i]] <- fake_vec(
+      x[[i]],
+      control = controls[[i]],
+      name = safe_profile_column_name(col, i),
       preserve_row_count = preserve_row_count,
       n = n,
       key_map = key_map_for_column(key_maps, col),
       risk_level = risk_level
     )
   }
+  names(fake_cols) <- col_names
 
   if (engine %in% c("pipeline", "independent") && length(deps) && n == nrow(x)) {
     for (dep in deps) {
@@ -104,11 +110,13 @@ varied_row_count <- function(n) {
 }
 
 new_data_frame_from_cols <- function(cols, n) {
-  out <- data.frame(.row_id = seq_len(n))
-  out$.row_id <- NULL
-  for (col in names(cols)) {
-    out[[col]] <- cols[[col]]
+  if (!length(cols)) {
+    out <- data.frame(.row_id = seq_len(n))
+    out$.row_id <- NULL
+    return(out)
   }
+  out <- as.data.frame(cols, stringsAsFactors = FALSE, check.names = FALSE, optional = TRUE)
+  names(out) <- names(cols)
   out
 }
 

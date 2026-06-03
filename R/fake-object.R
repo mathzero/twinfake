@@ -2,6 +2,13 @@ fake_object <- function(x, ...) {
   UseMethod("fake_object")
 }
 
+fake_object_safe <- function(x, ...) {
+  tryCatch(
+    fake_object(x, ...),
+    error = function(e) fake_object_fallback(x)
+  )
+}
+
 fake_object.default <- function(x, ...) {
   if (is_atomicish(x)) {
     return(fake_vec(x, ...))
@@ -13,8 +20,12 @@ fake_object.default <- function(x, ...) {
     return(out)
   }
   if (is.list(x)) {
-    return(lapply(x, fake_object, ...))
+    return(lapply(x, fake_object_safe, ...))
   }
+  fake_object_fallback(x)
+}
+
+fake_object_fallback <- function(x) {
   cli_warn_twin("Unsupported object of class {.cls {class(x)}} was replaced with a structure-only placeholder.")
   list(
     twinfake_placeholder = TRUE,
@@ -29,7 +40,7 @@ fake_object.data.frame <- function(x, ...) {
 }
 
 fake_object.list <- function(x, ...) {
-  out <- lapply(x, fake_object, ...)
+  out <- lapply(x, fake_object_safe, ...)
   names(out) <- names(x)
   out
 }

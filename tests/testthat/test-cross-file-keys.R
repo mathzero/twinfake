@@ -12,6 +12,6 @@ test_that("cross-file keys preserve joins within a folder run", {
 
   real_key <- "002"
   expected_fake <- fake_patients$patient_id[match(real_key, real_patients$patient_id)]
-  observed_fake <- unique(fake_appointments$patient_id[real_appointments$patient_id == real_key])
+  observed_fake <- unique(fake_appointments$patient_id[which(real_appointments$patient_id == real_key)])
   expect_equal(observed_fake, expected_fake)
 })

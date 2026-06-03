@@ -4,6 +4,8 @@ Version: 0.0.1
 Authors@R: c(
     person("twinfake contributors", role = c("aut", "cre"), email = "twinfake@example.invalid")
   )
+Author: twinfake contributors
+Maintainer: twinfake contributors <twinfake@example.invalid>
 Description: Generates local, privacy-preserving dummy data sets that mirror
     schemas, file layouts, dirty data patterns, deterministic relationships, and
     join behaviour of sensitive analysis inputs. The generated data are intended

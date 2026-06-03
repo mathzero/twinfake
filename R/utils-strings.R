@@ -29,7 +29,7 @@ is_postcode_like <- function(x) {
 }
 
 is_numeric_string_like <- function(x) {
-  grepl("^\\s*[$£€-]?[0-9][0-9,]*(\\.[0-9]+)?%?\\s*$", x)
+  grepl("^\\s*[-$]?[0-9][0-9,]*(\\.[0-9]+)?%?\\s*$", x)
 }
 
 is_dirty_missing_token <- function(x) {
@@ -88,7 +88,7 @@ fake_leading_zero_id <- function(value, i) {
 }
 
 fake_numeric_string <- function(x, i) {
-  has_currency <- grepl("^\\s*[$£€]", x)
+  has_currency <- grepl("^\\s*[$]", x)
   has_percent <- grepl("%\\s*$", x)
   has_comma <- grepl(",", x)
   decimals <- if (grepl("\\.", x)) nchar(sub("^.*\\.([0-9]+).*$", "\\1", x)) else 0L

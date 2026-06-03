@@ -213,7 +213,7 @@ fake_difftime_vec <- function(x, n, risk_level = "strict") {
 
 fake_list_vec <- function(x, n) {
   source <- resize_vec(x, n)
-  lapply(seq_len(n), function(i) fake_object(source[[i]]))
+  lapply(seq_len(n), function(i) fake_object_safe(source[[i]]))
 }
 
 fake_keyed_vec <- function(x, key_map, template = x) {

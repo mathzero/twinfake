@@ -34,7 +34,7 @@ make_fake_data <- function(
   spec <- normalize_twin_spec(spec, sensitivity = sensitivity, engine = engine, risk_level = risk_level)
 
   with_twin_seed(seed, {
-    fake_object(
+    fake_object_safe(
       x,
       spec = spec,
       preserve_row_count = preserve_row_count,

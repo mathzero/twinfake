@@ -58,10 +58,16 @@ empty_privacy_findings <- function() {
 
 scan_file_for_tokens <- function(path, tokens, root) {
   rel <- safe_rel_path(path, root)
+  format <- file_format(path)
   if (is_supported_file(path)) {
     data <- tryCatch(read_twin_file(path, rel_path = rel)$data, error = function(e) NULL)
     if (!is.null(data)) {
-      return(scan_object_for_tokens(data, tokens, file = rel))
+      structured <- scan_object_for_tokens(data, tokens, file = rel)
+      if (format %in% c("csv", "tsv", "txt")) {
+        text <- scan_text_file_for_tokens(path, tokens, file = rel)
+        return(unique(rbind(structured, text)))
+      }
+      return(structured)
     }
   }
   scan_text_file_for_tokens(path, tokens, file = rel)
@@ -152,6 +158,7 @@ high_risk_tokens <- function(x) {
   x <- unique(x[!is.na(x)])
   x <- trimws(x)
   x <- x[nchar(x) >= 4L]
+  x <- x[!is_dirty_missing_token(x)]
   risky <- is_email_like(x) |
     is_url_like(x) |
     is_postcode_like(x) |

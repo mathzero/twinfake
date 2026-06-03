@@ -161,8 +161,14 @@ fake_numeric_core <- function(x, n, risk_level = "strict", template = x) {
   source <- resize_vec(template, n)
   finite <- x[is.finite(x)]
   out <- rep(0, n)
-  if (length(finite) == 1L) {
-    out[] <- finite[[1L]]
+  unique_finite <- unique(finite)
+  if (length(unique_finite) == 1L) {
+    value <- unique_finite[[1L]]
+    if (isTRUE(all.equal(value, 0))) {
+      out[] <- 0
+    } else {
+      out[] <- value + sign(value) * max(1, abs(value) * 0.05)
+    }
   } else if (length(finite) > 1L) {
     probs <- seq(0, 1, length.out = 11L)
     q <- as.numeric(stats::quantile(finite, probs = probs, na.rm = TRUE, names = FALSE, type = 7))

@@ -61,6 +61,25 @@ value set and marginal frequencies but row-level associations should be broken.
 Use `copy` only after explicit review. Both `permute` and `copy` retain real
 values and are deliberate disclosure-risk options.
 
+Column actions:
+
+- `sensitive`: generate synthetic values of the same broad type. Preserves row
+  count, missingness, duplicate patterns, category frequencies, broad
+  numeric/date distributions, and stable fake keys for key-like columns.
+- `public_code`: reuse original non-missing labels as allowed categories.
+  Preserves public label sets, observed frequencies, and missingness.
+- `permute`: shuffle existing values across rows when row count is unchanged,
+  or resample from original values if row count changes. Retains real values.
+- `copy`: copy original values in original row order. Retains raw values and
+  row-level associations.
+- `drop`: replace values with typed missing values while keeping the column in
+  the output schema.
+- `hash`: replace values with salted deterministic hashes. Equal input values
+  produce equal hashes for the same salt.
+- `structure_only`: replace non-missing values with simple placeholders such as
+  `TEXT_PLACEHOLDER`, `LEVEL_PLACEHOLDER`, `0`, or `FALSE` while keeping type
+  and missingness.
+
 ```r
 spec <- list(
   defaults = list(

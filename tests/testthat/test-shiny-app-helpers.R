@@ -54,6 +54,17 @@ test_that("Shiny relationship table shows generated tie status", {
   expect_true(any(deps_overridden$tied_when_generated == "overridden"))
 })
 
+test_that("Shiny action help covers every sensitivity option", {
+  details <- twinfake:::sensitivity_action_details()
+
+  expect_equal(details$sensitivity, twinfake:::valid_sensitivities())
+  expect_true(all(nzchar(details$label)))
+  expect_true(all(nzchar(details$effect)))
+  expect_true(all(nzchar(details$disclosure)))
+  expect_s3_class(twinfake:::selected_sensitivity_action_ui("permute"), "shiny.tag")
+  expect_s3_class(twinfake:::sensitivity_action_guide_ui(), "shiny.tag")
+})
+
 test_that("profile progress callback is called once per discovered file", {
   root <- tempdir()
   input <- make_fixture_folder(root)

@@ -68,6 +68,8 @@ shiny_app_ui <- function(input_dir, output_dir, spec_path) {
             choices = sensitivity_choice_labels(),
             selected = "sensitive"
           ),
+          shiny::uiOutput("column_action_description"),
+          sensitivity_action_guide_ui(),
           shiny::actionButton("apply_column_action", "Apply column action", icon = shiny::icon("check"), class = "tf-action"),
           shiny::numericInput("seed", "Seed", value = 20260603, min = 0, step = 1),
           shiny::checkboxInput("overwrite", "Overwrite output folder", value = TRUE),
@@ -243,6 +245,10 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
       shiny::div(class = "tf-status", status())
     })
 
+    output$column_action_description <- shiny::renderUI({
+      selected_sensitivity_action_ui(input$column_sensitivity %||% "sensitive")
+    })
+
     output$summary <- shiny::renderUI({
       profile_summary_ui(profile_state(), profile_elapsed())
     })
@@ -306,6 +312,14 @@ shiny_app_css <- function() {
     ".tf-panel { background: #fff; border: 1px solid #d9dee3; border-radius: 8px; padding: 14px; margin-bottom: 14px; }",
     ".tf-panel h2 { font-size: 17px; margin: 0 0 12px; font-weight: 650; letter-spacing: 0; }",
     ".tf-action { width: 100%; margin-top: 8px; text-align: left; }",
+    ".tf-action-description { border: 1px solid #d9dee3; border-radius: 6px; background: #fbfcfd; padding: 8px 10px; margin: 2px 0 8px; }",
+    ".tf-action-description-title, .tf-action-guide-title { font-size: 13px; font-weight: 650; margin-bottom: 4px; }",
+    ".tf-action-description p, .tf-action-guide p { color: #42505f; font-size: 12px; line-height: 1.35; margin: 4px 0 0; }",
+    ".tf-action-disclosure { color: #7a4b00 !important; }",
+    ".tf-action-code { float: right; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; font-weight: 500; color: #5b6673; background: #eef1f4; border-radius: 4px; padding: 1px 4px; margin-left: 6px; }",
+    ".tf-action-guide { border: 1px solid #d9dee3; border-radius: 6px; padding: 7px 9px; margin: 0 0 8px; background: #fff; }",
+    ".tf-action-guide summary { cursor: pointer; color: #1f2933; font-size: 13px; font-weight: 650; }",
+    ".tf-action-guide-item { border-top: 1px solid #e5e9ed; padding-top: 8px; margin-top: 8px; }",
     ".tf-status { white-space: pre-wrap; background: #101820; color: #f8fafc; border-radius: 6px; padding: 10px 12px; min-height: 42px; }",
     ".tf-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }",
     ".tf-metric { border: 1px solid #d9dee3; border-radius: 6px; padding: 8px; background: #fbfcfd; }",
@@ -314,6 +328,52 @@ shiny_app_css <- function() {
     ".tab-content { background: #fff; border: 1px solid #d9dee3; border-top: 0; padding: 12px; }",
     "@media (max-width: 900px) { .tf-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }",
     sep = "\n"
+  )
+}
+
+selected_sensitivity_action_ui <- function(sensitivity) {
+  details <- sensitivity_action_details()
+  idx <- match(sensitivity, details$sensitivity)
+  if (is.na(idx)) {
+    idx <- match("sensitive", details$sensitivity)
+  }
+  row <- details[idx, , drop = FALSE]
+  shiny::div(
+    class = "tf-action-description",
+    shiny::div(
+      class = "tf-action-description-title",
+      row$label,
+      shiny::tags$span(class = "tf-action-code", row$sensitivity)
+    ),
+    shiny::tags$p(row$effect),
+    shiny::tags$p(class = "tf-action-disclosure", row$disclosure)
+  )
+}
+
+sensitivity_action_guide_ui <- function() {
+  details <- sensitivity_action_details()
+  items <- lapply(seq_len(nrow(details)), function(i) {
+    row <- details[i, , drop = FALSE]
+    shiny::div(
+      class = "tf-action-guide-item",
+      shiny::div(
+        class = "tf-action-guide-title",
+        row$label,
+        shiny::tags$span(class = "tf-action-code", row$sensitivity)
+      ),
+      shiny::tags$p(row$effect),
+      shiny::tags$p(class = "tf-action-disclosure", row$disclosure)
+    )
+  })
+  do.call(
+    shiny::tags$details,
+    c(
+      list(
+        class = "tf-action-guide",
+        shiny::tags$summary("What each action does")
+      ),
+      items
+    )
   )
 }
 

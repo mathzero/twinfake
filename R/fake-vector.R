@@ -29,6 +29,9 @@ fake_vec.default <- function(
   if (sensitivity == "structure_only") {
     return(structure_only_vec(x, n))
   }
+  if (sensitivity == "permute") {
+    return(fake_permute_vec(x, n))
+  }
   if (sensitivity == "public_code") {
     return(fake_public_code_vec(x, n))
   }
@@ -68,6 +71,16 @@ resize_vec <- function(x, n) {
   if (length(x) == n) return(x)
   if (!length(x)) return(typed_missing_like(x, n))
   x[rep(seq_along(x), length.out = n)]
+}
+
+fake_permute_vec <- function(x, n) {
+  if (!length(x)) {
+    return(typed_missing_like(x, n))
+  }
+  if (n == length(x)) {
+    return(x[random_permutation(length(x))])
+  }
+  x[sample_indices(length(x), n, replace = TRUE)]
 }
 
 typed_missing_like <- function(x, n) {

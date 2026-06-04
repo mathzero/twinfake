@@ -85,7 +85,7 @@ fake_data_frame <- function(
       name = safe_profile_column_name(col, i),
       preserve_row_count = preserve_row_count,
       n = n,
-      key_map = key_map_for_column(key_maps, col),
+      key_map = key_map_for_control(key_maps, col, controls[[i]]),
       risk_level = risk_level
     )
   }
@@ -93,8 +93,12 @@ fake_data_frame <- function(
 
   if (engine %in% c("pipeline", "independent") && length(deps) && n == nrow(x)) {
     for (dep in deps) {
+      parent_control <- controls[[dep$parent]]
       child_control <- controls[[dep$child]]
-      if (!child_control$sensitivity %in% c("copy", "public_code", "hash", "drop")) {
+      if (is_original_value_action(parent_control$sensitivity %||% "sensitive")) {
+        next
+      }
+      if (!child_control$sensitivity %in% dependency_child_action_overrides()) {
         fake_cols[[dep$child]] <- apply_dependency(dep, fake_cols, x, child_control)
       }
     }
@@ -102,6 +106,21 @@ fake_data_frame <- function(
 
   out <- new_data_frame_from_cols(fake_cols, n)
   restore_data_frame_class(out, x)
+}
+
+key_map_for_control <- function(key_maps, column, control) {
+  if (!identical(control$sensitivity %||% "sensitive", "sensitive")) {
+    return(NULL)
+  }
+  key_map_for_column(key_maps, column)
+}
+
+dependency_child_action_overrides <- function() {
+  c("copy", "public_code", "hash", "drop", "permute")
+}
+
+is_original_value_action <- function(sensitivity) {
+  sensitivity %in% c("copy", "permute")
 }
 
 varied_row_count <- function(n) {

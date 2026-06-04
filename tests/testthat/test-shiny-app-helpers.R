@@ -15,6 +15,45 @@ test_that("Shiny app tables and summary render from cached profiles", {
   expect_s3_class(summary, "shiny.tag")
 })
 
+test_that("Shiny column actions feed display tables and specs", {
+  folder_profile <- list(
+    files = list(example = profile_data(toy_patients())),
+    skipped = list(),
+    risk_level = "strict"
+  )
+  class(folder_profile) <- c("twinfake_folder_profile", class(folder_profile))
+
+  controls <- twinfake:::profile_column_controls(folder_profile, default_sensitivity = "sensitive")
+  idx <- which(controls$column == "sex")
+  controls$sensitivity[[idx]] <- "permute"
+  controls$edited[[idx]] <- TRUE
+
+  columns <- twinfake:::profile_columns_with_controls(folder_profile, controls)
+  spec <- twinfake:::spec_from_column_controls(folder_profile, controls)
+
+  expect_equal(columns$sensitivity[columns$column == "sex"], "permute")
+  expect_true(columns$custom_action[columns$column == "sex"])
+  expect_equal(spec$files[["example"]]$columns$sex$sensitivity, "permute")
+})
+
+test_that("Shiny relationship table shows generated tie status", {
+  folder_profile <- list(
+    files = list(example = profile_data(toy_patients())),
+    skipped = list(),
+    risk_level = "strict"
+  )
+  class(folder_profile) <- c("twinfake_folder_profile", class(folder_profile))
+  controls <- twinfake:::profile_column_controls(folder_profile, default_sensitivity = "sensitive")
+
+  deps <- twinfake:::profile_dependencies_with_controls(folder_profile, controls)
+  controls$sensitivity[controls$column == deps$child[[1L]]] <- "permute"
+  deps_overridden <- twinfake:::profile_dependencies_with_controls(folder_profile, controls)
+
+  expect_gt(nrow(deps), 0)
+  expect_true(any(deps$tied_when_generated == "yes"))
+  expect_true(any(deps_overridden$tied_when_generated == "overridden"))
+})
+
 test_that("profile progress callback is called once per discovered file", {
   root <- tempdir()
   input <- make_fixture_folder(root)

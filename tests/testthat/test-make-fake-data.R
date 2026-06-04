@@ -45,6 +45,36 @@ test_that("public-code character columns preserve explicit labels", {
   expect_equal(sort(unique(na.omit(fake$decision))), c("exclude", "include"))
 })
 
+test_that("permuted character columns retain original values and frequencies", {
+  real <- data.frame(
+    decision = c(rep("include", 7), rep("exclude", 3), NA),
+    stringsAsFactors = FALSE
+  )
+  spec <- list(files = list(default = list(columns = list(decision = list(sensitivity = "permute")))))
+  fake <- make_fake_data(real, spec = spec, seed = 10)
+
+  expect_equal(sort(na.omit(fake$decision)), sort(na.omit(real$decision)))
+  expect_equal(sum(is.na(fake$decision)), sum(is.na(real$decision)))
+  expect_true(all(na.omit(fake$decision) %in% na.omit(real$decision)))
+})
+
+test_that("explicit original-value actions override key-map faking", {
+  real <- data.frame(
+    patient_id = c("ID001", "ID002", "ID003", "ID004"),
+    stringsAsFactors = FALSE
+  )
+  key_map <- setNames(paste0("key_", seq_along(real$patient_id)), real$patient_id)
+  spec <- list(files = list(default = list(columns = list(patient_id = list(sensitivity = "permute")))))
+  fake <- twinfake:::with_twin_seed(2, twinfake:::fake_data_frame(
+    real,
+    spec = spec,
+    key_maps = list(patient_id = key_map)
+  ))
+
+  expect_equal(sort(fake$patient_id), sort(real$patient_id))
+  expect_false(any(fake$patient_id %in% key_map))
+})
+
 test_that("high-cardinality and structured character columns are not treated as categorical", {
   real <- data.frame(
     id = sprintf("ID%03d", seq_len(50)),

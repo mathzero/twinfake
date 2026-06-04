@@ -56,7 +56,10 @@ with fake labels, while frequencies and duplicate patterns are preserved.
 ## Sensitivity specs
 
 Use `public_code` only for labels that are genuinely safe and required by
-pipeline logic. Use `copy` only after explicit review.
+pipeline logic. Use `permute` when private pipeline code needs the original
+value set and marginal frequencies but row-level associations should be broken.
+Use `copy` only after explicit review. Both `permute` and `copy` retain real
+values and are deliberate disclosure-risk options.
 
 ```r
 spec <- list(
@@ -70,6 +73,7 @@ spec <- list(
       columns = list(
         patient_id = list(role = "key", sensitivity = "sensitive"),
         sex = list(sensitivity = "public_code"),
+        review_decision = list(sensitivity = "permute"),
         name = list(sensitivity = "sensitive"),
         short_name = list(sensitivity = "sensitive", derived_from = "name")
       )
@@ -119,7 +123,10 @@ launch_twin_app(
 ```
 
 The app requires optional packages `shiny` and `DT`, binds to `127.0.0.1` by
-default, and does not display raw values by default.
+default, and does not display raw values by default. After scanning a folder,
+use the column action controls to override individual features and the
+Relationships tab to review perfectly tied columns that may be regenerated
+together.
 
 ## Privacy scan
 

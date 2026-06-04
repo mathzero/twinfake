@@ -112,14 +112,29 @@ column_control <- function(spec, column, file_id = NULL, sheet = NULL) {
     }
   }
 
-  valid <- c("sensitive", "public_code", "copy", "drop", "hash", "structure_only")
-  if (!out$sensitivity %in% valid) {
+  if (!out$sensitivity %in% valid_sensitivities()) {
     cli_abort_twin(
       "Column {.field {column}} has unsupported sensitivity {.val {out$sensitivity}}.",
       class = "twinfake_bad_spec"
     )
   }
   out
+}
+
+valid_sensitivities <- function() {
+  c("sensitive", "public_code", "permute", "copy", "drop", "hash", "structure_only")
+}
+
+sensitivity_choice_labels <- function() {
+  c(
+    "Generate fake values" = "sensitive",
+    "Preserve public codes" = "public_code",
+    "Permute original values" = "permute",
+    "Copy original values" = "copy",
+    "Blank/drop values" = "drop",
+    "Hash values" = "hash",
+    "Structure only" = "structure_only"
+  )
 }
 
 column_ref <- function(file_id, column, sheet = NULL) {

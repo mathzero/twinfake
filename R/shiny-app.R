@@ -58,9 +58,17 @@ shiny_app_ui <- function(input_dir, output_dir, spec_path) {
           shiny::selectInput(
             "default_sensitivity",
             "Default sensitivity",
-            choices = c("sensitive", "public_code", "copy", "drop", "hash", "structure_only"),
+            choices = sensitivity_choice_labels(),
             selected = "sensitive"
           ),
+          shiny::selectInput("column_ref", "Column", choices = character()),
+          shiny::selectInput(
+            "column_sensitivity",
+            "Column action",
+            choices = sensitivity_choice_labels(),
+            selected = "sensitive"
+          ),
+          shiny::actionButton("apply_column_action", "Apply column action", icon = shiny::icon("check"), class = "tf-action"),
           shiny::numericInput("seed", "Seed", value = 20260603, min = 0, step = 1),
           shiny::checkboxInput("overwrite", "Overwrite output folder", value = TRUE),
           shiny::actionButton("scan_folder", "Scan folder", icon = shiny::icon("search"), class = "btn-primary tf-action"),
@@ -79,7 +87,8 @@ shiny_app_ui <- function(input_dir, output_dir, spec_path) {
         shiny::tabsetPanel(
           id = "results_tabs",
           shiny::tabPanel("Files", DT::DTOutput("files")),
-          shiny::tabPanel("Columns", DT::DTOutput("columns"))
+          shiny::tabPanel("Columns", DT::DTOutput("columns")),
+          shiny::tabPanel("Relationships", DT::DTOutput("dependencies"))
         )
       )
     )
@@ -93,11 +102,29 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
   function(input, output, session) {
     profile_state <- shiny::reactiveVal(NULL)
     profile_elapsed <- shiny::reactiveVal(NULL)
+    column_controls <- shiny::reactiveVal(empty_column_controls())
     status <- shiny::reactiveVal("Ready. Scan the folder to load file and column summaries.")
+
+    current_spec <- function() {
+      profile <- profile_state()
+      if (!is.null(profile)) {
+        return(spec_from_column_controls(
+          profile,
+          column_controls(),
+          default_sensitivity = input$default_sensitivity
+        ))
+      }
+      if (file.exists(input$spec_path)) {
+        return(read_twin_spec(input$spec_path))
+      }
+      NULL
+    }
 
     shiny::observeEvent(input$input_dir, {
       profile_state(NULL)
       profile_elapsed(NULL)
+      column_controls(empty_column_controls())
+      update_column_choices(session, column_controls())
       status("Input folder changed. Scan the folder to refresh summaries.")
     }, ignoreInit = TRUE)
 
@@ -120,14 +147,54 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
           elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
           profile_state(profile)
           profile_elapsed(elapsed)
+          controls <- profile_column_controls(profile, default_sensitivity = input$default_sensitivity)
+          column_controls(controls)
+          update_column_choices(session, controls)
           status(paste0("Profile ready in ", format_duration(elapsed), "."))
         },
         error = function(e) {
           profile_state(NULL)
           profile_elapsed(NULL)
+          column_controls(empty_column_controls())
+          update_column_choices(session, column_controls())
           status(paste("Scan failed:", conditionMessage(e)))
         }
       )
+    })
+
+    shiny::observeEvent(input$default_sensitivity, {
+      controls <- column_controls()
+      if (!nrow(controls)) {
+        return(invisible())
+      }
+      keep <- !controls$edited
+      controls$sensitivity[keep] <- input$default_sensitivity
+      column_controls(controls)
+      sync_selected_column_action(session, controls, input$column_ref)
+    }, ignoreInit = TRUE)
+
+    shiny::observeEvent(input$column_ref, {
+      sync_selected_column_action(session, column_controls(), input$column_ref)
+    }, ignoreInit = TRUE)
+
+    shiny::observeEvent(input$apply_column_action, {
+      controls <- column_controls()
+      if (!nrow(controls) || !shiny::isTruthy(input$column_ref)) {
+        status("Scan the folder before applying a column action.")
+        return(invisible())
+      }
+      idx <- which(controls$ref == input$column_ref)
+      if (!length(idx)) {
+        status("Selected column is no longer available. Scan the folder again.")
+        return(invisible())
+      }
+      controls$sensitivity[[idx[[1L]]]] <- input$column_sensitivity
+      controls$edited[[idx[[1L]]]] <- TRUE
+      column_controls(controls)
+      status(paste0(
+        "Applied ", input$column_sensitivity, " to ",
+        column_display_label(controls[idx[[1L]], , drop = FALSE]), "."
+      ))
     })
 
     output$files <- DT::renderDT(
@@ -147,7 +214,21 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
     output$columns <- DT::renderDT(
       {
         p <- profile_state()
-        rows <- if (is.null(p)) empty_columns_table() else profile_columns_table(p)
+        rows <- if (is.null(p)) empty_columns_display_table() else profile_columns_with_controls(p, column_controls())
+        DT::datatable(
+          rows,
+          rownames = FALSE,
+          filter = "top",
+          options = list(pageLength = 20, scrollX = TRUE, deferRender = TRUE)
+        )
+      },
+      server = FALSE
+    )
+
+    output$dependencies <- DT::renderDT(
+      {
+        p <- profile_state()
+        rows <- if (is.null(p)) empty_dependencies_table() else profile_dependencies_with_controls(p, column_controls())
         DT::datatable(
           rows,
           rownames = FALSE,
@@ -173,7 +254,7 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
           if (is.null(profile)) {
             cli_abort_twin("Scan the folder before saving a spec.")
           }
-          spec <- skeleton_spec_from_profile(profile, default_sensitivity = input$default_sensitivity)
+          spec <- current_spec()
           write_twin_spec(spec, input$spec_path)
           status(paste("Wrote spec:", input$spec_path))
         },
@@ -193,7 +274,7 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
             result <- make_fake_folder(
               input_dir = input$input_dir,
               output_dir = input$output_dir,
-              spec = if (file.exists(input$spec_path)) read_twin_spec(input$spec_path) else NULL,
+              spec = current_spec(),
               seed = input$seed,
               overwrite = input$overwrite,
               quiet = TRUE
@@ -226,7 +307,7 @@ shiny_app_css <- function() {
     ".tf-panel h2 { font-size: 17px; margin: 0 0 12px; font-weight: 650; letter-spacing: 0; }",
     ".tf-action { width: 100%; margin-top: 8px; text-align: left; }",
     ".tf-status { white-space: pre-wrap; background: #101820; color: #f8fafc; border-radius: 6px; padding: 10px 12px; min-height: 42px; }",
-    ".tf-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }",
+    ".tf-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }",
     ".tf-metric { border: 1px solid #d9dee3; border-radius: 6px; padding: 8px; background: #fbfcfd; }",
     ".tf-metric-label { color: #64707d; font-size: 12px; }",
     ".tf-metric-value { font-size: 20px; font-weight: 650; margin-top: 2px; }",
@@ -256,6 +337,116 @@ empty_columns_table <- function() {
     key_suggestion = logical(),
     stringsAsFactors = FALSE
   )
+}
+
+empty_columns_display_table <- function() {
+  out <- empty_columns_table()
+  out$sensitivity <- character()
+  out$role <- character()
+  out$custom_action <- logical()
+  out[, c(
+    "file", "sheet", "column", "sensitivity", "role", "custom_action",
+    "class", "missing_prop", "unique_rate", "key_suggestion"
+  )]
+}
+
+empty_column_controls <- function() {
+  data.frame(
+    ref = character(),
+    file = character(),
+    sheet = character(),
+    column = character(),
+    sensitivity = character(),
+    role = character(),
+    edited = logical(),
+    stringsAsFactors = FALSE
+  )
+}
+
+profile_column_controls <- function(profile, default_sensitivity = "sensitive") {
+  columns <- profile_columns_table(profile)
+  if (!nrow(columns)) {
+    return(empty_column_controls())
+  }
+  data.frame(
+    ref = as.character(seq_len(nrow(columns))),
+    file = columns$file,
+    sheet = columns$sheet,
+    column = columns$column,
+    sensitivity = sensitivity_to_default(default_sensitivity),
+    role = ifelse(columns$key_suggestion, "key", ""),
+    edited = FALSE,
+    stringsAsFactors = FALSE
+  )
+}
+
+profile_columns_with_controls <- function(profile, controls) {
+  rows <- profile_columns_table(profile)
+  if (!nrow(rows)) {
+    return(empty_columns_display_table())
+  }
+  keys <- control_match_key(rows$file, rows$sheet, rows$column)
+  control_keys <- control_match_key(controls$file, controls$sheet, controls$column)
+  idx <- match(keys, control_keys)
+  rows$sensitivity <- controls$sensitivity[idx]
+  rows$role <- controls$role[idx]
+  rows$custom_action <- controls$edited[idx]
+  rows$sensitivity[is.na(rows$sensitivity)] <- "sensitive"
+  rows$role[is.na(rows$role)] <- ""
+  rows$custom_action[is.na(rows$custom_action)] <- FALSE
+  rows[, c(
+    "file", "sheet", "column", "sensitivity", "role", "custom_action",
+    "class", "missing_prop", "unique_rate", "key_suggestion"
+  )]
+}
+
+control_match_key <- function(file, sheet, column) {
+  sheet <- ifelse(is.na(sheet), "", sheet)
+  paste(file, sheet, column, sep = "\t")
+}
+
+update_column_choices <- function(session, controls) {
+  choices <- if (!nrow(controls)) {
+    character()
+  } else {
+    out <- controls$ref
+    names(out) <- make.unique(vapply(
+      seq_len(nrow(controls)),
+      function(i) column_display_label(controls[i, , drop = FALSE]),
+      character(1L)
+    ))
+    out
+  }
+  shiny::updateSelectInput(
+    session,
+    "column_ref",
+    choices = choices,
+    selected = if (length(choices)) choices[[1L]] else character()
+  )
+  shiny::updateSelectInput(
+    session,
+    "column_sensitivity",
+    selected = if (nrow(controls)) controls$sensitivity[[1L]] else "sensitive"
+  )
+}
+
+sync_selected_column_action <- function(session, controls, ref) {
+  if (!nrow(controls) || !shiny::isTruthy(ref)) {
+    shiny::updateSelectInput(session, "column_sensitivity", selected = "sensitive")
+    return(invisible())
+  }
+  idx <- which(controls$ref == ref)
+  if (!length(idx)) {
+    return(invisible())
+  }
+  shiny::updateSelectInput(session, "column_sensitivity", selected = controls$sensitivity[[idx[[1L]]]])
+  invisible()
+}
+
+column_display_label <- function(row) {
+  sheet <- row$sheet[[1L]]
+  sheet_label <- if (!is.na(sheet) && nzchar(sheet)) paste0(" [", sheet, "]") else ""
+  paste0(row$file[[1L]], sheet_label, " / ", row$column[[1L]])
 }
 
 profile_files_table <- function(profile) {
@@ -295,15 +486,18 @@ profile_summary_ui <- function(profile, elapsed = NULL) {
       metric_box("Profile", "Not loaded"),
       metric_box("Files", "0"),
       metric_box("Columns", "0"),
+      metric_box("Relationships", "0"),
       metric_box("Elapsed", "--")
     ))
   }
   files <- profile_files_table(profile)
   columns <- profile_columns_table(profile)
+  dependencies <- profile_dependencies_table(profile)
   metric_values <- list(
     metric_box("Profile", "Ready"),
     metric_box("Files", nrow(files)),
     metric_box("Columns", nrow(columns)),
+    metric_box("Relationships", nrow(dependencies)),
     metric_box("Elapsed", format_duration(elapsed %||% 0))
   )
   do.call(shiny::div, c(list(class = "tf-metrics"), metric_values))
@@ -387,6 +581,92 @@ profile_columns_rows <- function(file, sheet, prof) {
   })
 }
 
+empty_dependencies_table <- function() {
+  data.frame(
+    file = character(),
+    sheet = character(),
+    parent = character(),
+    child = character(),
+    relationship = character(),
+    parent_action = character(),
+    child_action = character(),
+    tied_when_generated = character(),
+    stringsAsFactors = FALSE
+  )
+}
+
+profile_dependencies_table <- function(profile) {
+  rows <- list()
+  for (file in names(profile$files)) {
+    prof <- profile$files[[file]]
+    if (inherits(prof, "twinfake_profile")) {
+      rows <- c(rows, profile_dependency_rows(file, NA_character_, prof))
+    } else if (is.list(prof)) {
+      for (sheet in names(prof)) {
+        if (inherits(prof[[sheet]], "twinfake_profile")) {
+          rows <- c(rows, profile_dependency_rows(file, sheet, prof[[sheet]]))
+        }
+      }
+    }
+  }
+  if (!length(rows)) {
+    return(empty_dependencies_table())
+  }
+  do.call(rbind, rows)
+}
+
+profile_dependency_rows <- function(file, sheet, prof) {
+  deps <- prof$dependencies %||% list()
+  lapply(deps, function(dep) {
+    data.frame(
+      file = file,
+      sheet = sheet,
+      parent = dep$parent,
+      child = dep$child,
+      relationship = dependency_type_label(dep$type),
+      parent_action = "",
+      child_action = "",
+      tied_when_generated = "",
+      stringsAsFactors = FALSE
+    )
+  })
+}
+
+profile_dependencies_with_controls <- function(profile, controls) {
+  rows <- profile_dependencies_table(profile)
+  if (!nrow(rows)) {
+    return(rows)
+  }
+  control_keys <- control_match_key(controls$file, controls$sheet, controls$column)
+  parent_idx <- match(control_match_key(rows$file, rows$sheet, rows$parent), control_keys)
+  child_idx <- match(control_match_key(rows$file, rows$sheet, rows$child), control_keys)
+  rows$parent_action <- controls$sensitivity[parent_idx]
+  rows$child_action <- controls$sensitivity[child_idx]
+  rows$parent_action[is.na(rows$parent_action)] <- "sensitive"
+  rows$child_action[is.na(rows$child_action)] <- "sensitive"
+  tied <- !is_original_value_action(rows$parent_action) &
+    !(rows$child_action %in% dependency_child_action_overrides())
+  rows$tied_when_generated <- ifelse(tied, "yes", "overridden")
+  rows
+}
+
+dependency_type_label <- function(type) {
+  labels <- c(
+    duplicate = "duplicate values",
+    lower = "lower-case transform",
+    upper = "upper-case transform",
+    trim = "trimmed text",
+    prefix = "prefix",
+    suffix = "suffix",
+    categorical_map = "perfect categorical map",
+    date_year = "date year",
+    date_month = "date month",
+    date_day = "date day",
+    round = "rounded numeric"
+  )
+  unname(labels[[type]] %||% type)
+}
+
 skeleton_spec_from_profile <- function(profile, default_sensitivity = "sensitive") {
   files <- list()
   for (file in names(profile$files)) {
@@ -410,6 +690,38 @@ skeleton_spec_from_profile <- function(profile, default_sensitivity = "sensitive
     files = files,
     keys = list()
   )
+}
+
+spec_from_column_controls <- function(profile, controls, default_sensitivity = "sensitive") {
+  if (!nrow(controls)) {
+    return(skeleton_spec_from_profile(profile, default_sensitivity = default_sensitivity))
+  }
+  files <- list()
+  for (i in seq_len(nrow(controls))) {
+    file_key <- profile_spec_key(controls$file[[i]], controls$sheet[[i]])
+    files[[file_key]] <- files[[file_key]] %||% list(columns = list())
+    column_spec <- list(sensitivity = controls$sensitivity[[i]])
+    if (nzchar(controls$role[[i]] %||% "")) {
+      column_spec$role <- controls$role[[i]]
+    }
+    files[[file_key]]$columns[[controls$column[[i]]]] <- column_spec
+  }
+  list(
+    defaults = list(
+      sensitivity = sensitivity_to_default(default_sensitivity),
+      engine = "pipeline",
+      risk_level = "strict"
+    ),
+    files = files,
+    keys = list()
+  )
+}
+
+profile_spec_key <- function(file, sheet) {
+  if (is.na(sheet) || !nzchar(sheet)) {
+    return(file)
+  }
+  paste0(file, ":", sheet)
 }
 
 skeleton_columns <- function(prof, default_sensitivity) {

@@ -75,6 +75,87 @@ test_that("explicit original-value actions override key-map faking", {
   expect_false(any(fake$patient_id %in% key_map))
 })
 
+test_that("children of permuted duplicate parents can keep the shared permutation", {
+  real <- data.frame(
+    patient_id = c("ID001", "ID002", "ID001", "ID003"),
+    patient_id_copy = c("ID001", "ID002", "ID001", "ID003"),
+    stringsAsFactors = FALSE
+  )
+  spec <- list(files = list(default = list(columns = list(
+    patient_id = list(sensitivity = "permute"),
+    patient_id_copy = list(sensitivity = "hash")
+  ))))
+  fake <- make_fake_data(real, spec = spec, seed = 21)
+
+  expect_equal(sort(fake$patient_id), sort(real$patient_id))
+  expect_equal(fake$patient_id_copy, twinfake:::safe_hash(fake$patient_id))
+})
+
+test_that("sensitive mapped children follow a permuted parent without keeping raw child labels", {
+  real <- data.frame(
+    decision = c("include", "exclude", "include", "maybe", "exclude", "include"),
+    decision_code = c("I", "E", "I", "M", "E", "I"),
+    stringsAsFactors = FALSE
+  )
+  spec <- list(files = list(default = list(columns = list(
+    decision = list(sensitivity = "permute"),
+    decision_code = list(sensitivity = "sensitive")
+  ))))
+  fake <- make_fake_data(real, spec = spec, seed = 14)
+
+  grouped <- split(fake$decision_code, fake$decision)
+  expect_true(all(vapply(grouped, function(x) length(unique(x[!is.na(x)])) <= 1L, logical(1))))
+  expect_equal(sort(fake$decision), sort(real$decision))
+  expect_false(any(real$decision_code %in% fake$decision_code))
+})
+
+test_that("shared permutation propagates through dependency chains", {
+  real <- data.frame(
+    name = c("Alice", "Bob", "Carol", "Dina"),
+    name_lower = c("alice", "bob", "carol", "dina"),
+    name_lower_copy = c("alice", "bob", "carol", "dina"),
+    stringsAsFactors = FALSE
+  )
+  spec <- list(files = list(default = list(columns = list(
+    name = list(sensitivity = "permute"),
+    name_lower = list(sensitivity = "sensitive"),
+    name_lower_copy = list(sensitivity = "hash")
+  ))))
+  fake <- make_fake_data(real, spec = spec, seed = 32)
+
+  expect_equal(fake$name_lower, tolower(fake$name))
+  expect_equal(fake$name_lower_copy, twinfake:::safe_hash(fake$name_lower))
+})
+
+test_that("relationship-breaking child actions still override permuted parents", {
+  real <- data.frame(
+    decision = c("include", "exclude", "include", "maybe", "exclude", "include"),
+    decision_code = c("I", "E", "I", "M", "E", "I"),
+    stringsAsFactors = FALSE
+  )
+  spec <- list(files = list(default = list(columns = list(
+    decision = list(sensitivity = "permute"),
+    decision_code = list(sensitivity = "drop")
+  ))))
+  fake <- make_fake_data(real, spec = spec, seed = 14)
+
+  expect_true(all(is.na(fake$decision_code)))
+})
+
+test_that("structure-only children are not overwritten by detected relationships", {
+  real <- data.frame(
+    name = c("Alice", "Bob", "Carol"),
+    name_lower = c("alice", "bob", "carol"),
+    stringsAsFactors = FALSE
+  )
+  spec <- list(files = list(default = list(columns = list(
+    name_lower = list(sensitivity = "structure_only")
+  ))))
+  fake <- make_fake_data(real, spec = spec, seed = 9)
+
+  expect_equal(fake$name_lower, rep("TEXT_PLACEHOLDER", nrow(real)))
+})
+
 test_that("high-cardinality and structured character columns are not treated as categorical", {
   real <- data.frame(
     id = sprintf("ID%03d", seq_len(50)),

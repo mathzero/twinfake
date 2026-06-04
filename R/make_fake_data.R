@@ -75,26 +75,47 @@ fake_data_frame <- function(
     controls[[i]] <- column_control(spec, col_names[[i]], file_id = file_id, sheet = sheet)
   }
   names(controls) <- col_names
+  permutation_indices <- permutation_indices_for_controls(x, controls, n)
 
   fake_cols <- vector("list", length(x))
   for (i in seq_along(x)) {
     col <- col_names[[i]]
+    control <- controls[[i]]
+    if (!is.null(permutation_indices[[i]])) {
+      control$permute_index <- permutation_indices[[i]]
+    }
     fake_cols[[i]] <- fake_vec(
       x[[i]],
-      control = controls[[i]],
+      control = control,
       name = safe_profile_column_name(col, i),
       preserve_row_count = preserve_row_count,
       n = n,
-      key_map = key_map_for_control(key_maps, col, controls[[i]]),
+      key_map = key_map_for_control(key_maps, col, control),
       risk_level = risk_level
     )
   }
   names(fake_cols) <- col_names
 
   if (engine %in% c("pipeline", "independent") && length(deps) && n == nrow(x)) {
+    dependency_permutation_indices <- permutation_indices
     for (dep in deps) {
       parent_control <- controls[[dep$parent]]
       child_control <- controls[[dep$child]]
+      parent_index <- dependency_permutation_indices[[dep$parent]]
+      if (!is.null(parent_index)) {
+        fake_cols[[dep$child]] <- fake_permuted_dependency_child(
+          dep = dep,
+          fake = fake_cols,
+          real = x,
+          child_control = child_control,
+          parent_index = parent_index,
+          risk_level = risk_level
+        )
+        if (!(child_control$sensitivity %||% "sensitive") %in% relationship_breaking_child_actions()) {
+          dependency_permutation_indices[[dep$child]] <- parent_index
+        }
+        next
+      }
       if (is_original_value_action(parent_control$sensitivity %||% "sensitive")) {
         next
       }
@@ -108,6 +129,49 @@ fake_data_frame <- function(
   restore_data_frame_class(out, x)
 }
 
+permutation_indices_for_controls <- function(x, controls, n) {
+  out <- vector("list", length(controls))
+  names(out) <- names(controls)
+  for (i in seq_along(controls)) {
+    if (!identical(controls[[i]]$sensitivity %||% "sensitive", "permute")) {
+      next
+    }
+    out[[i]] <- permutation_index(length(x[[i]]), n)
+  }
+  out
+}
+
+permutation_index <- function(source_n, n) {
+  if (source_n <= 0L || n <= 0L) {
+    return(integer())
+  }
+  if (source_n == n) {
+    return(random_permutation(source_n))
+  }
+  sample_indices(source_n, n, replace = TRUE)
+}
+
+fake_permuted_dependency_child <- function(dep, fake, real, child_control, parent_index, risk_level = "strict") {
+  sensitivity <- child_control$sensitivity %||% "sensitive"
+  if (sensitivity %in% relationship_breaking_child_actions() || is.null(parent_index)) {
+    return(fake[[dep$child]])
+  }
+
+  real_child <- real[[dep$child]]
+  aligned_child <- real_child[parent_index]
+  if (sensitivity %in% c("copy", "permute", "public_code")) {
+    return(aligned_child)
+  }
+  if (sensitivity == "hash") {
+    return(restore_fake_class(safe_hash(aligned_child, salt = child_control$salt %||% "twinfake"), real_child))
+  }
+
+  aligned_real <- real
+  aligned_real[[dep$parent]] <- real[[dep$parent]][parent_index]
+  aligned_real[[dep$child]] <- aligned_child
+  apply_dependency(dep, fake, aligned_real, child_control)
+}
+
 key_map_for_control <- function(key_maps, column, control) {
   if (!identical(control$sensitivity %||% "sensitive", "sensitive")) {
     return(NULL)
@@ -116,7 +180,11 @@ key_map_for_control <- function(key_maps, column, control) {
 }
 
 dependency_child_action_overrides <- function() {
-  c("copy", "public_code", "hash", "drop", "permute")
+  c("copy", "public_code", "hash", "drop", "permute", "structure_only")
+}
+
+relationship_breaking_child_actions <- function() {
+  c("drop", "structure_only")
 }
 
 is_original_value_action <- function(sensitivity) {

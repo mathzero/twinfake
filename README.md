@@ -68,8 +68,10 @@ Column actions:
   numeric/date distributions, and stable fake keys for key-like columns.
 - `public_code`: reuse original non-missing labels as allowed categories.
   Preserves public label sets, observed frequencies, and missingness.
-- `permute`: shuffle existing values across rows when row count is unchanged,
-  or resample from original values if row count changes. Retains real values.
+- `permute`: shuffle existing values across rows when row count is unchanged.
+  Detected child columns reuse the same shuffle unless the child action is
+  `drop` or `structure_only`. Retains real values, marginal distributions, and
+  opted-in linked pairs.
 - `copy`: copy original values in original row order. Retains raw values and
   row-level associations.
 - `drop`: replace values with typed missing values while keeping the column in
@@ -145,7 +147,9 @@ The app requires optional packages `shiny` and `DT`, binds to `127.0.0.1` by
 default, and does not display raw values by default. After scanning a folder,
 use the column action controls to override individual features and the
 Relationships tab to review perfectly tied columns that may be regenerated
-together.
+together. A relationship shown as `shared permutation` means the parent column
+is permuted and the child column reuses that same row shuffle before applying
+its own action.
 
 ## Privacy scan
 

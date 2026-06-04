@@ -704,10 +704,20 @@ profile_dependencies_with_controls <- function(profile, controls) {
   rows$child_action <- controls$sensitivity[child_idx]
   rows$parent_action[is.na(rows$parent_action)] <- "sensitive"
   rows$child_action[is.na(rows$child_action)] <- "sensitive"
-  tied <- !is_original_value_action(rows$parent_action) &
-    !(rows$child_action %in% dependency_child_action_overrides())
-  rows$tied_when_generated <- ifelse(tied, "yes", "overridden")
+  rows$tied_when_generated <- relationship_generation_status(rows$parent_action, rows$child_action)
   rows
+}
+
+relationship_generation_status <- function(parent_action, child_action) {
+  ifelse(
+    parent_action == "permute" & !(child_action %in% relationship_breaking_child_actions()),
+    "shared permutation",
+    ifelse(
+      !is_original_value_action(parent_action) & !(child_action %in% dependency_child_action_overrides()),
+      "yes",
+      "overridden"
+    )
+  )
 }
 
 dependency_type_label <- function(type) {

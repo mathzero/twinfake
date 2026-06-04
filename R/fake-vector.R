@@ -30,7 +30,7 @@ fake_vec.default <- function(
     return(structure_only_vec(x, n))
   }
   if (sensitivity == "permute") {
-    return(fake_permute_vec(x, n))
+    return(fake_permute_vec(x, n, index = control$permute_index))
   }
   if (sensitivity == "public_code") {
     return(fake_public_code_vec(x, n))
@@ -73,9 +73,15 @@ resize_vec <- function(x, n) {
   x[rep(seq_along(x), length.out = n)]
 }
 
-fake_permute_vec <- function(x, n) {
+fake_permute_vec <- function(x, n, index = NULL) {
   if (!length(x)) {
     return(typed_missing_like(x, n))
+  }
+  if (!is.null(index)) {
+    if (length(index) != n || any(is.na(index)) || any(index < 1L | index > length(x))) {
+      cli_abort_twin("Internal permutation index is incompatible with the source vector.")
+    }
+    return(x[index])
   }
   if (n == length(x)) {
     return(x[random_permutation(length(x))])

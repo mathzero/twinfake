@@ -153,7 +153,8 @@ sensitivity_action_details <- function() {
       ),
       paste(
         "Shuffle the existing column values across rows when row count is unchanged.",
-        "If row count changes, resample from the original values."
+        "Detected child columns reuse the same shuffle unless the child action drops",
+        "or structure-only blanks the relationship."
       ),
       "Copy the original column values in their original row order.",
       "Replace values with typed missing values while keeping the column in the output schema.",
@@ -169,7 +170,7 @@ sensitivity_action_details <- function() {
     disclosure = c(
       "Default privacy-first option. Does not intentionally retain raw values.",
       "Use only for codes or labels that are genuinely safe to disclose.",
-      "Retains real values and their marginal distribution. Use only after review.",
+      "Retains real values, marginal distributions, and opted-in linked pairs. Use only after review.",
       "Retains raw values and row-level associations. Highest disclosure risk.",
       "Does not retain original values, but removes column utility apart from schema and missingness.",
       "Can leak equality and frequency patterns, especially for small categorical domains.",

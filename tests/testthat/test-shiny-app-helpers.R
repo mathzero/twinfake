@@ -48,10 +48,14 @@ test_that("Shiny relationship table shows generated tie status", {
   deps <- twinfake:::profile_dependencies_with_controls(folder_profile, controls)
   controls$sensitivity[controls$column == deps$child[[1L]]] <- "permute"
   deps_overridden <- twinfake:::profile_dependencies_with_controls(folder_profile, controls)
+  controls$sensitivity[controls$column == deps$parent[[1L]]] <- "permute"
+  controls$sensitivity[controls$column == deps$child[[1L]]] <- "hash"
+  deps_shared <- twinfake:::profile_dependencies_with_controls(folder_profile, controls)
 
   expect_gt(nrow(deps), 0)
   expect_true(any(deps$tied_when_generated == "yes"))
   expect_true(any(deps_overridden$tied_when_generated == "overridden"))
+  expect_true(any(deps_shared$tied_when_generated == "shared permutation"))
 })
 
 test_that("Shiny action help covers every sensitivity option", {

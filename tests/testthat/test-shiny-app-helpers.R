@@ -108,6 +108,22 @@ test_that("generation preflight maps output formats to install hints", {
   )
 })
 
+test_that("generation preflight handles multiple scanned paths", {
+  root <- file.path(tempdir(), "twinfake_preflight")
+  unlink(root, recursive = TRUE)
+  dir.create(root, recursive = TRUE)
+  writeLines("x\n1", file.path(root, "one.csv"))
+  saveRDS(data.frame(x = 1), file.path(root, "two.rds"))
+  three <- data.frame(x = 1)
+  save(three, file = file.path(root, "three.rda"))
+
+  expect_equal(
+    twinfake:::file_format(c("one.csv", "two.RDS", "three.rda")),
+    c("csv", "rds", "rdata")
+  )
+  expect_no_error(twinfake:::check_generation_output_packages(root))
+})
+
 test_that("profile progress callback is called once per discovered file", {
   root <- tempdir()
   input <- make_fixture_folder(root)

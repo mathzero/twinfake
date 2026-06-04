@@ -11,7 +11,8 @@ supported_extensions <- function() {
 
 file_format <- function(path) {
   ext <- tolower(tools::file_ext(path))
-  if (ext == "rda") "rdata" else ext
+  ext[ext == "rda"] <- "rdata"
+  ext
 }
 
 is_supported_file <- function(path) {

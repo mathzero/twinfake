@@ -18,6 +18,52 @@ is_supported_file <- function(path) {
   file_format(path) %in% supported_extensions()
 }
 
+required_output_packages_for_formats <- function(formats) {
+  packages <- unlist(lapply(unique(formats), function(format) {
+    switch(
+      format,
+      xls = "writexl",
+      xlsx = "writexl",
+      parquet = "arrow",
+      feather = "arrow",
+      sav = "haven",
+      dta = "haven",
+      sas7bdat = "haven",
+      qs = "qs",
+      character()
+    )
+  }), use.names = FALSE)
+  unique(packages[nzchar(packages)])
+}
+
+missing_output_packages_for_paths <- function(paths) {
+  formats <- file_format(paths[is_supported_file(paths)])
+  packages <- required_output_packages_for_formats(formats)
+  packages[!vapply(packages, requireNamespace, logical(1L), quietly = TRUE)]
+}
+
+check_generation_output_packages <- function(input_dir, recursive = TRUE, include = NULL, exclude = NULL) {
+  input_dir <- check_dir_readable(input_dir, "input_dir")
+  paths <- discover_input_files(input_dir, recursive = recursive, include = include, exclude = exclude)
+  missing <- missing_output_packages_for_paths(paths)
+  if (length(missing)) {
+    cli_abort_twin(c(
+      "Missing optional writer package(s): {.pkg {missing}}.",
+      i = "Install the missing package(s) with {.code {install_packages_call(missing)}} before generating fake output for this folder."
+    ), class = "twinfake_missing_suggested_package")
+  }
+  invisible(TRUE)
+}
+
+install_packages_call <- function(packages) {
+  packages <- unique(as.character(packages))
+  quoted <- paste0('"', packages, '"')
+  if (length(packages) == 1L) {
+    return(paste0("install.packages(", quoted, ")"))
+  }
+  paste0("install.packages(c(", paste(quoted, collapse = ", "), "))")
+}
+
 read_twin_file <- function(path, rel_path = basename(path), xlsx_sheets = "all") {
   format <- file_format(path)
   data <- switch(

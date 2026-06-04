@@ -156,7 +156,7 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
           profile_state(NULL)
           profile_elapsed(NULL)
           column_controls(empty_column_controls())
-          status(paste("Scan failed:", conditionMessage(e)))
+          status(paste("Scan failed:", shiny_condition_message(e)))
         }
       )
     })
@@ -265,7 +265,7 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
           status(paste("Wrote spec:", input$spec_path))
         },
         error = function(e) {
-          status(paste("Spec write failed:", conditionMessage(e)))
+          status(paste("Spec write failed:", shiny_condition_message(e)))
         }
       )
     })
@@ -275,6 +275,7 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
       status("Generating fake folder...")
       tryCatch(
         {
+          check_generation_output_packages(input$input_dir)
           result <- shiny::withProgress(message = "Generating fake folder", value = 0.1, {
             shiny::incProgress(0.2, detail = "Reading files and building key maps")
             result <- make_fake_folder(
@@ -296,11 +297,18 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
           ))
         },
         error = function(e) {
-          status(paste("Generation failed:", conditionMessage(e)))
+          status(paste("Generation failed:", shiny_condition_message(e)))
         }
       )
     })
   }
+}
+
+shiny_condition_message <- function(e) {
+  msg <- conditionMessage(e)
+  msg <- cli::ansi_strip(msg)
+  msg <- gsub("\r", "", msg, fixed = TRUE)
+  trimws(msg)
 }
 
 shiny_app_css <- function() {

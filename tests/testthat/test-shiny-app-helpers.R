@@ -91,6 +91,23 @@ test_that("Shiny action help covers every sensitivity option", {
   expect_s3_class(twinfake:::sensitivity_action_guide_ui(), "shiny.tag")
 })
 
+test_that("Shiny error messages strip CLI ANSI escapes", {
+  err <- simpleError("\033[34mwritexl\033[39m is missing")
+
+  expect_equal(twinfake:::shiny_condition_message(err), "writexl is missing")
+})
+
+test_that("generation preflight maps output formats to install hints", {
+  formats <- c("csv", "xlsx", "xls", "parquet", "dta")
+  packages <- twinfake:::required_output_packages_for_formats(formats)
+
+  expect_equal(packages, c("writexl", "arrow", "haven"))
+  expect_equal(
+    twinfake:::install_packages_call(c("writexl", "arrow")),
+    'install.packages(c("writexl", "arrow"))'
+  )
+})
+
 test_that("profile progress callback is called once per discovered file", {
   root <- tempdir()
   input <- make_fixture_folder(root)

@@ -117,6 +117,13 @@ fake <- make_fake_data(real_data, spec = spec)
 when installed. All sheets are read by default, sheet names are preserved, and a
 single fake workbook is written.
 
+On a new machine, install both optional Excel packages before generating fake
+Excel output:
+
+```r
+install.packages(c("readxl", "writexl"))
+```
+
 Legacy `.xls` inputs are read, but fake workbooks are written as `.xlsx` files
 with the same base name because `writexl` does not write old BIFF `.xls`
 workbooks. The manifest records this conversion.

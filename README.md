@@ -145,11 +145,11 @@ launch_twin_app(
 
 The app requires optional packages `shiny` and `DT`, binds to `127.0.0.1` by
 default, and does not display raw values by default. After scanning a folder,
-use the column action controls to override individual features and the
-Relationships tab to review perfectly tied columns that may be regenerated
-together. A relationship shown as `shared permutation` means the parent column
-is permuted and the child column reuses that same row shuffle before applying
-its own action.
+select one or more rows in the Columns table, choose a column action, and apply
+it to update those features together. The Relationships tab shows perfectly
+tied columns that may be regenerated together. A relationship shown as
+`shared permutation` means the parent column is permuted and the child column
+reuses that same row shuffle before applying its own action.
 
 ## Privacy scan
 

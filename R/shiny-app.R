@@ -61,7 +61,6 @@ shiny_app_ui <- function(input_dir, output_dir, spec_path) {
             choices = sensitivity_choice_labels(),
             selected = "sensitive"
           ),
-          shiny::selectInput("column_ref", "Column", choices = character()),
           shiny::selectInput(
             "column_sensitivity",
             "Column action",
@@ -70,7 +69,8 @@ shiny_app_ui <- function(input_dir, output_dir, spec_path) {
           ),
           shiny::uiOutput("column_action_description"),
           sensitivity_action_guide_ui(),
-          shiny::actionButton("apply_column_action", "Apply column action", icon = shiny::icon("check"), class = "tf-action"),
+          shiny::uiOutput("column_selection_summary"),
+          shiny::actionButton("apply_column_action", "Apply action", icon = shiny::icon("check"), class = "tf-action"),
           shiny::numericInput("seed", "Seed", value = 20260603, min = 0, step = 1),
           shiny::checkboxInput("overwrite", "Overwrite output folder", value = TRUE),
           shiny::actionButton("scan_folder", "Scan folder", icon = shiny::icon("search"), class = "btn-primary tf-action"),
@@ -126,7 +126,6 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
       profile_state(NULL)
       profile_elapsed(NULL)
       column_controls(empty_column_controls())
-      update_column_choices(session, column_controls())
       status("Input folder changed. Scan the folder to refresh summaries.")
     }, ignoreInit = TRUE)
 
@@ -151,14 +150,12 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
           profile_elapsed(elapsed)
           controls <- profile_column_controls(profile, default_sensitivity = input$default_sensitivity)
           column_controls(controls)
-          update_column_choices(session, controls)
           status(paste0("Profile ready in ", format_duration(elapsed), "."))
         },
         error = function(e) {
           profile_state(NULL)
           profile_elapsed(NULL)
           column_controls(empty_column_controls())
-          update_column_choices(session, column_controls())
           status(paste("Scan failed:", conditionMessage(e)))
         }
       )
@@ -172,30 +169,25 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
       keep <- !controls$edited
       controls$sensitivity[keep] <- input$default_sensitivity
       column_controls(controls)
-      sync_selected_column_action(session, controls, input$column_ref)
-    }, ignoreInit = TRUE)
-
-    shiny::observeEvent(input$column_ref, {
-      sync_selected_column_action(session, column_controls(), input$column_ref)
     }, ignoreInit = TRUE)
 
     shiny::observeEvent(input$apply_column_action, {
       controls <- column_controls()
-      if (!nrow(controls) || !shiny::isTruthy(input$column_ref)) {
-        status("Scan the folder before applying a column action.")
+      display_rows <- profile_columns_with_controls(profile_state(), controls)
+      refs <- selected_column_refs(display_rows, input$columns_rows_selected)
+      if (!nrow(controls) || !length(refs)) {
+        status("Select one or more columns in the Columns tab before applying an action.")
         return(invisible())
       }
-      idx <- which(controls$ref == input$column_ref)
-      if (!length(idx)) {
-        status("Selected column is no longer available. Scan the folder again.")
+      result <- apply_column_action_to_controls(controls, refs, input$column_sensitivity)
+      if (!result$count) {
+        status("Selected columns are no longer available. Scan the folder again.")
         return(invisible())
       }
-      controls$sensitivity[[idx[[1L]]]] <- input$column_sensitivity
-      controls$edited[[idx[[1L]]]] <- TRUE
-      column_controls(controls)
+      column_controls(result$controls)
       status(paste0(
         "Applied ", input$column_sensitivity, " to ",
-        column_display_label(controls[idx[[1L]], , drop = FALSE]), "."
+        result$count, " column", if (result$count == 1L) "" else "s", "."
       ))
     })
 
@@ -221,7 +213,8 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
           rows,
           rownames = FALSE,
           filter = "top",
-          options = list(pageLength = 20, scrollX = TRUE, deferRender = TRUE)
+          selection = list(mode = "multiple", target = "row"),
+          options = columns_table_options()
         )
       },
       server = FALSE
@@ -247,6 +240,13 @@ shiny_app_server <- function(input_dir, output_dir, spec_path) {
 
     output$column_action_description <- shiny::renderUI({
       selected_sensitivity_action_ui(input$column_sensitivity %||% "sensitive")
+    })
+
+    output$column_selection_summary <- shiny::renderUI({
+      selected_column_summary_ui(
+        profile_columns_with_controls(profile_state(), column_controls()),
+        input$columns_rows_selected
+      )
     })
 
     output$summary <- shiny::renderUI({
@@ -320,6 +320,8 @@ shiny_app_css <- function() {
     ".tf-action-guide { border: 1px solid #d9dee3; border-radius: 6px; padding: 7px 9px; margin: 0 0 8px; background: #fff; }",
     ".tf-action-guide summary { cursor: pointer; color: #1f2933; font-size: 13px; font-weight: 650; }",
     ".tf-action-guide-item { border-top: 1px solid #e5e9ed; padding-top: 8px; margin-top: 8px; }",
+    ".tf-selection-summary { border: 1px solid #c9d5df; border-radius: 6px; background: #f5f9fc; color: #314253; font-size: 13px; padding: 7px 9px; margin-bottom: 8px; }",
+    "table.dataTable tbody tr.selected, table.dataTable tbody tr.selected td { background-color: #dbeafe !important; color: #111827 !important; }",
     ".tf-status { white-space: pre-wrap; background: #101820; color: #f8fafc; border-radius: 6px; padding: 10px 12px; min-height: 42px; }",
     ".tf-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }",
     ".tf-metric { border: 1px solid #d9dee3; border-radius: 6px; padding: 8px; background: #fbfcfd; }",
@@ -329,6 +331,46 @@ shiny_app_css <- function() {
     "@media (max-width: 900px) { .tf-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }",
     sep = "\n"
   )
+}
+
+columns_table_options <- function() {
+  list(
+    pageLength = 20,
+    scrollX = TRUE,
+    deferRender = TRUE,
+    columnDefs = list(list(targets = 0, visible = FALSE, searchable = FALSE))
+  )
+}
+
+selected_column_summary_ui <- function(rows, selected_rows) {
+  count <- length(selected_column_refs(rows, selected_rows))
+  shiny::div(
+    class = "tf-selection-summary",
+    paste0("Selected columns: ", count)
+  )
+}
+
+selected_column_refs <- function(rows, selected_rows = NULL) {
+  if (!is.null(selected_rows) && length(selected_rows) && nrow(rows)) {
+    selected_rows <- as.integer(selected_rows)
+    selected_rows <- selected_rows[!is.na(selected_rows) & selected_rows >= 1L & selected_rows <= nrow(rows)]
+    if (length(selected_rows)) {
+      return(unique(rows$ref[selected_rows]))
+    }
+  }
+  character()
+}
+
+apply_column_action_to_controls <- function(controls, refs, sensitivity) {
+  refs <- unique(as.character(refs))
+  idx <- match(refs, controls$ref)
+  idx <- idx[!is.na(idx)]
+  if (!length(idx)) {
+    return(list(controls = controls, count = 0L))
+  }
+  controls$sensitivity[idx] <- sensitivity
+  controls$edited[idx] <- TRUE
+  list(controls = controls, count = length(idx))
 }
 
 selected_sensitivity_action_ui <- function(sensitivity) {
@@ -401,11 +443,12 @@ empty_columns_table <- function() {
 
 empty_columns_display_table <- function() {
   out <- empty_columns_table()
+  out$ref <- character()
   out$sensitivity <- character()
   out$role <- character()
   out$custom_action <- logical()
   out[, c(
-    "file", "sheet", "column", "sensitivity", "role", "custom_action",
+    "ref", "file", "sheet", "column", "sensitivity", "role", "custom_action",
     "class", "missing_prop", "unique_rate", "key_suggestion"
   )]
 }
@@ -441,6 +484,9 @@ profile_column_controls <- function(profile, default_sensitivity = "sensitive") 
 }
 
 profile_columns_with_controls <- function(profile, controls) {
+  if (is.null(profile)) {
+    return(empty_columns_display_table())
+  }
   rows <- profile_columns_table(profile)
   if (!nrow(rows)) {
     return(empty_columns_display_table())
@@ -448,14 +494,16 @@ profile_columns_with_controls <- function(profile, controls) {
   keys <- control_match_key(rows$file, rows$sheet, rows$column)
   control_keys <- control_match_key(controls$file, controls$sheet, controls$column)
   idx <- match(keys, control_keys)
+  rows$ref <- controls$ref[idx]
   rows$sensitivity <- controls$sensitivity[idx]
   rows$role <- controls$role[idx]
   rows$custom_action <- controls$edited[idx]
+  rows$ref[is.na(rows$ref)] <- ""
   rows$sensitivity[is.na(rows$sensitivity)] <- "sensitive"
   rows$role[is.na(rows$role)] <- ""
   rows$custom_action[is.na(rows$custom_action)] <- FALSE
   rows[, c(
-    "file", "sheet", "column", "sensitivity", "role", "custom_action",
+    "ref", "file", "sheet", "column", "sensitivity", "role", "custom_action",
     "class", "missing_prop", "unique_rate", "key_suggestion"
   )]
 }
@@ -463,50 +511,6 @@ profile_columns_with_controls <- function(profile, controls) {
 control_match_key <- function(file, sheet, column) {
   sheet <- ifelse(is.na(sheet), "", sheet)
   paste(file, sheet, column, sep = "\t")
-}
-
-update_column_choices <- function(session, controls) {
-  choices <- if (!nrow(controls)) {
-    character()
-  } else {
-    out <- controls$ref
-    names(out) <- make.unique(vapply(
-      seq_len(nrow(controls)),
-      function(i) column_display_label(controls[i, , drop = FALSE]),
-      character(1L)
-    ))
-    out
-  }
-  shiny::updateSelectInput(
-    session,
-    "column_ref",
-    choices = choices,
-    selected = if (length(choices)) choices[[1L]] else character()
-  )
-  shiny::updateSelectInput(
-    session,
-    "column_sensitivity",
-    selected = if (nrow(controls)) controls$sensitivity[[1L]] else "sensitive"
-  )
-}
-
-sync_selected_column_action <- function(session, controls, ref) {
-  if (!nrow(controls) || !shiny::isTruthy(ref)) {
-    shiny::updateSelectInput(session, "column_sensitivity", selected = "sensitive")
-    return(invisible())
-  }
-  idx <- which(controls$ref == ref)
-  if (!length(idx)) {
-    return(invisible())
-  }
-  shiny::updateSelectInput(session, "column_sensitivity", selected = controls$sensitivity[[idx[[1L]]]])
-  invisible()
-}
-
-column_display_label <- function(row) {
-  sheet <- row$sheet[[1L]]
-  sheet_label <- if (!is.na(sheet) && nzchar(sheet)) paste0(" [", sheet, "]") else ""
-  paste0(row$file[[1L]], sheet_label, " / ", row$column[[1L]])
 }
 
 profile_files_table <- function(profile) {

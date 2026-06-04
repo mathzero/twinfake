@@ -31,9 +31,31 @@ test_that("Shiny column actions feed display tables and specs", {
   columns <- twinfake:::profile_columns_with_controls(folder_profile, controls)
   spec <- twinfake:::spec_from_column_controls(folder_profile, controls)
 
+  expect_true("ref" %in% names(columns))
   expect_equal(columns$sensitivity[columns$column == "sex"], "permute")
   expect_true(columns$custom_action[columns$column == "sex"])
   expect_equal(spec$files[["example"]]$columns$sex$sensitivity, "permute")
+})
+
+test_that("Shiny column table selections apply actions to multiple controls", {
+  folder_profile <- list(
+    files = list(example = profile_data(toy_patients())),
+    skipped = list(),
+    risk_level = "strict"
+  )
+  class(folder_profile) <- c("twinfake_folder_profile", class(folder_profile))
+  controls <- twinfake:::profile_column_controls(folder_profile, default_sensitivity = "sensitive")
+  columns <- twinfake:::profile_columns_with_controls(folder_profile, controls)
+  selected_rows <- match(c("sex", "name"), columns$column)
+  refs <- twinfake:::selected_column_refs(columns, selected_rows)
+  result <- twinfake:::apply_column_action_to_controls(controls, refs, "hash")
+
+  expect_equal(length(refs), 2)
+  expect_equal(result$count, 2)
+  expect_equal(result$controls$sensitivity[selected_rows], c("hash", "hash"))
+  expect_true(all(result$controls$edited[selected_rows]))
+  expect_identical(twinfake:::selected_column_refs(columns, integer()), character())
+  expect_s3_class(twinfake:::selected_column_summary_ui(columns, selected_rows), "shiny.tag")
 })
 
 test_that("Shiny relationship table shows generated tie status", {
